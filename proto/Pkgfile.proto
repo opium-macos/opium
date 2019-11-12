@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+name="package"
+description="An example package showing all options available"
+homepage="https://github.com/Cadichon/genpkg"
+version="0.0.1"
+license=""
+
+provides=("test" "true")
+replaces=("")
+conflicts=("")
+
+sources=("")
+sha1=("")
+sha256=("")
+sha512=("12")
+noextract=("")
+nocd=true
+
+dependences=("")
+build_dependences=("")
+
+add_option "option1" "This is a dummy option"
+add_option "option2" "This is a dummy option with a dependency" "deps"
+add_option "option3" "This is a dummy option with multiple dependencies" "deps;more-deps"
+add_option "option4" "This is a dummy option with multiple dependencies and build dependency" "deps;more-deps" "build-deps"
+
+build() {
+    if has_option "option1"
+    then
+	    log "I have option1"
+    fi
+    if has_option "option2"
+    then
+	    log "I have option2"
+    fi
+}
+
+uninstall() {
+    log "uninstall"
+}
