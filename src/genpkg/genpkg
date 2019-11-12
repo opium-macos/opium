@@ -1,0 +1,221 @@
+#!/usr/bin/env bash
+
+if [[ -f "$HOME/.config/opium" ]]
+then
+    # shellcheck source=/dev/null
+    source "$HOME/.config/opium"
+fi
+
+if [[ -f "$HOME/Library/Preferences/opium" ]]
+then
+    # shellcheck source=/dev/null
+    source "HOME/Library/Preferences/opium"
+fi
+
+LIBEXEC="../libexec"
+PKGFILE=${PKGFILE:="Pkgfile"}
+
+PATH=$PATH:$LIBEXEC
+
+GENPKG_VERSION="0.0.1"
+GENPKG_COMMAND_PATH="$LIBEXEC/genpkg/command"
+GENPKG_COMMANDS=()
+GENPKG_DEBUG=""
+GENPKG_DIR="."
+
+# shellcheck disable=2120
+pushd() {
+    command pushd "$@" > /dev/null
+}
+
+# shellcheck disable=2120
+popd() {
+    command popd "$@" > /dev/null
+}
+
+log() {
+    echo "$(tput setaf 2)${2:-->} $(tput sgr0)$1"
+}
+
+error() {
+    >&2 echo "$(tput setaf 1)!> $(tput sgr0)$1"
+}
+
+debug() {
+    if [[ "$GENPKG_DEBUG" == "true" ]]
+    then
+        >&2 echo "$(tput setaf 3)#> $(tput sgr0)$1"
+    fi
+}
+
+die() {
+    error "$1"
+    exit "${2:-1}"
+}
+
+try_source() {
+    # shellcheck source=/dev/null
+    if ! source "$1" 2> /dev/null
+    then
+        die "genpkg: error while sourcing $1"
+    fi
+    debug "sourced: $1"
+}
+
+is_genpkg_command() {
+    local found=1
+
+    for _command in "${GENPKG_COMMANDS[@]}"
+    do
+        if [[ "$_command" == "$1" ]]
+        then
+            found=0
+        fi
+    done
+    return $found
+}
+
+are_commands_loaded() {
+    if [[ "${#GENPKG_COMMANDS[@]}" -eq 0 ]]
+    then
+        return 1
+    else
+        return 0
+    fi
+}
+
+load_commands() {
+    while IFS='' read -r line
+    do
+        line=${line:0:-8}
+        GENPKG_COMMANDS+=("$(basename "$line")")
+    done < <(ls $GENPKG_COMMAND_PATH/*.command)
+    for _command in "${GENPKG_COMMANDS[@]}"
+    do
+        try_source "$GENPKG_COMMAND_PATH/${_command}.command"
+        if ! command -v "${_command}_entrypoint" &> /dev/null
+        then
+            die "genpkg: internal error: '$_command' command has no entrypoint"
+        fi
+        if ! command -v "${_command}_desc" &> /dev/null
+        then
+            die "genpkg: internal error: '$_command' command has no description"
+        fi
+        if ! command -v "${_command}_help" &> /dev/null
+        then
+            die "genpkg: internal error: '$_command' command has no help"
+        fi
+    done
+}
+
+usage() {
+    if ! are_commands_loaded
+    then
+        load_commands
+    fi
+    echo "genpkg $GENPKG_VERSION"
+    echo
+    echo "Generate package and package information from a Pkgfile"
+    echo
+    echo "usage: genpkg [<options> ...] <command> [<arguments> ...]"
+    echo
+    echo "Options:"
+    echo
+    echo "-c dir, -cdir, -c=dir, --change-directory=dir, --change-directory dir"
+    echo "  cd to dir before reading Pkgfile"
+    echo
+    echo "-d, --debug"
+    echo "  Enable debug output"
+    echo
+    echo "-f file, -ffile, -f=file, --file file, --file=file, --pkgfile file, --pkgfile=file"
+    echo "  Use file as a Pkgfile"
+    echo
+    echo "-h, --help"
+    echo "  Display this"
+    echo
+    echo
+    echo "Commands:"
+    echo
+    for _command in "${GENPKG_COMMANDS[@]}"
+    do
+        echo "$_command"
+        echo "  $("${_command}_desc")"
+        echo
+    done
+    echo
+}
+
+main() {
+    while [[ "$#" -ne 0 && "$1" = -* ]]
+    do
+        case "$1" in
+            -h|--help)
+                usage
+                return 0
+                ;;
+            -f|--file|--pkgfile)
+                shift
+                if [[ "#$" -eq 0 ]]
+                then
+                    die "genpkg: missing argument for $1"
+                fi
+                PKGFILE="$1"
+                ;;
+            -f=*|--file=*|--pkgfile=*)
+                PKGFILE=$(echo "$1" | cut -d "=" -f 2)
+                ;;
+            -f*)
+                PKGFILE=${1:2}
+                ;;
+            -c|--change-directory)
+                shift
+                if [[ "$#" -eq 0 ]]
+                then
+                    die "genpkg: missing argument for $1"
+                fi
+                GENPKG_DIR="$1"
+                ;;
+            -c=*|--change-directory=*)
+                GENPKG_DIR=$(echo "$1" | cut -d "=" -f 2)
+                ;;
+            -c*)
+                GENPKG_DIR=${1:2}
+                ;;
+            -d|--debug)
+                GENPKG_DEBUG="true"
+                ;;
+            *)
+                die "genpkg: unknown option: $1"
+                ;;
+        esac
+        shift
+    done
+    if [[ "$#" -eq 0 ]]
+    then
+        usage
+        return 0
+    fi
+    load_commands
+    debug "Pkgfile: $PKGFILE"
+    debug "Dir: $GENPKG_DIR"
+    if ! is_genpkg_command "$1"
+    then
+        die "genpkg: unknown command: $1"
+    else
+        _command="$1"
+        shift
+        if [[ "$GENPKG_DIR" != "." ]]
+        then
+            pushd "$GENPKG_DIR" || die "genpkg: $GENPKG_DIR: No such directory"
+            debug "Changing directory to $GENPKG_DIR"
+        fi
+        "${_command}_entrypoint" "$@"
+        if [[ "$GENPKG_DIR" != "." ]]
+        then
+            popd || die "genpkg: can't go back to $GENPKG_PWD"
+            debug "Changing directory to $GENPKG_DIR"
+        fi
+    fi
+}
+
+main "$@"
