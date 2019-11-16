@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 help_entrypoint() {
     if [ "$#" -eq 0 ]
     then
@@ -7,7 +5,7 @@ help_entrypoint() {
     else
         if ! is_genpkg_command "$1"
         then
-            die "genpkg: unknown command: $1"
+            die "genpkg: help: unknown command: $1"
         else
             "$1_help"
         fi
