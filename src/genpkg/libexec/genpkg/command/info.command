@@ -1,22 +1,21 @@
-#!/usr/bin/env bash
-
 info_entrypoint() {
-    try_source "$PKGFILE"
-    #TODO
-    #lint_entrypoint
-    for var in "name" \
+    if ! lint_entrypoint > /dev/null
+    then
+        die "genpkg: build: $PKGFILE isn't valid"
+    fi
+    for var_name in "name" \
                    "description" \
                    "version" \
                    "homepage" \
-                   "license"
+                   "license" \
+                   "nocd"
     do
-        local var_holder="${!var}"
-        if [[ ${#var_holder} -ne 0 ]]
+        if declare -p "$var_name" > /dev/null 2>&1
         then
-            echo "$var=$var_holder"
+            echo "$var_name=${!var_name}"
         fi
     done
-    for var in "provides" \
+    for var_name in "provides" \
                    "replaces" \
                    "conficts" \
                    "sources" \
@@ -25,18 +24,22 @@ info_entrypoint() {
                    "sha512" \
                    "noextract" \
                    "dependencies" \
-                   "build_dependencies"
+                   "build_dependencies" \
+                   "options" \
+                   "options_descriptions"
 
     do
-        # shellcheck disable=1087
-        local name_holder="$var[@]"
-        for elem in "${!name_holder}"
-        do
-            if [[ "${#elem}" -ne 0 ]]
-            then
-                echo "$var=$elem"
-            fi
-        done
+        if declare -p "$var_name" > /dev/null 2>&1
+        then
+            local array="${var_name}[@]"
+            for elem in "${!array}"
+            do
+                if [[ "${#elem}" -ne 0 ]]
+                then
+                    echo "$var_name=$elem"
+                fi
+            done
+        fi
     done
 }
 
