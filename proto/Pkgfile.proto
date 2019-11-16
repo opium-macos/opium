@@ -1,24 +1,22 @@
-#!/usr/bin/env bash
-
 name="package"
 description="An example package showing all options available"
 homepage="https://github.com/Cadichon/genpkg"
 version="0.0.1"
-license=""
+license="WTFPL"
 
-provides=("test" "true")
-replaces=("")
-conflicts=("")
+provides=()
+replaces=()
+conflicts=()
 
-sources=("")
-sha1=("")
-sha256=("")
-sha512=("12")
-noextract=("")
-nocd=true
+sources=()
+sha1=()
+sha256=()
+sha512=()
+noextract=()
+nocd="true"
 
-dependences=("")
-build_dependences=("")
+dependencies=()
+build_dependencies=()
 
 add_option "option1" "This is a dummy option"
 add_option "option2" "This is a dummy option with a dependency" "deps"
