@@ -13,25 +13,15 @@ then
 fi
 
 LIBEXEC="../libexec"
-PKGFILE=${PKGFILE:="Pkgfile"}
+PREFIX=${PREFIX:="/opt/pkg"}
 
 PATH=$PATH:$LIBEXEC
 
 GENPKG_VERSION="0.0.1"
 GENPKG_COMMAND_PATH="$LIBEXEC/genpkg/command"
 GENPKG_COMMANDS=()
-GENPKG_DEBUG=""
+GENPKG_DEBUG="false"
 GENPKG_DIR="."
-
-# shellcheck disable=2120
-pushd() {
-    command pushd "$@" > /dev/null
-}
-
-# shellcheck disable=2120
-popd() {
-    command popd "$@" > /dev/null
-}
 
 log() {
     echo "$(tput setaf 2)${2:-->} $(tput sgr0)$1"
@@ -42,13 +32,32 @@ error() {
 }
 
 debug() {
-    if [[ "$GENPKG_DEBUG" == "true" ]]
+    if [[ "$GENPKG_DEBUG" == true ]]
     then
         >&2 echo "$(tput setaf 3)#> $(tput sgr0)$1"
     fi
 }
 
+# shellcheck disable=2120
+pushd() {
+    command pushd "$@" > /dev/null || die "genpkg: $GENPKG_DIR: No such directory"
+    debug "Changing directory to $GENPKG_DIR"
+}
+
+# shellcheck disable=2120
+popd() {
+    local old_dir
+    old_dir=$(dirs -p | sort -r | head -n 1)
+    command popd "$@" > /dev/null || error "genpkg: can't go back to $old_dir"
+    debug "Changing directory back to $old_dir"
+}
+
 die() {
+    if [[ "$GENPKG_DIR" != "." ]]
+    then
+        # shellcheck disable=2164
+        popd
+    fi
     error "$1"
     exit "${2:-1}"
 }
@@ -148,16 +157,17 @@ usage() {
 main() {
     while [[ "$#" -ne 0 && "$1" = -* ]]
     do
-        case "$1" in
+        local case="$1"
+        case "$case" in
             -h|--help)
                 usage
                 return 0
                 ;;
             -f|--file|--pkgfile)
                 shift
-                if [[ "#$" -eq 0 ]]
+                if [[ "$#" -eq 0 ]]
                 then
-                    die "genpkg: missing argument for $1"
+                    die "genpkg: missing argument for $case"
                 fi
                 PKGFILE="$1"
                 ;;
@@ -171,7 +181,7 @@ main() {
                 shift
                 if [[ "$#" -eq 0 ]]
                 then
-                    die "genpkg: missing argument for $1"
+                    die "genpkg: missing argument for $case"
                 fi
                 GENPKG_DIR="$1"
                 ;;
@@ -197,25 +207,29 @@ main() {
     fi
     load_commands
     debug "Pkgfile: $PKGFILE"
-    debug "Dir: $GENPKG_DIR"
+    debug "Directory: $GENPKG_DIR"
     if ! is_genpkg_command "$1"
     then
         die "genpkg: unknown command: $1"
     else
-        _command="$1"
+        local _command="$1"
+        declare -i ret
         shift
         if [[ "$GENPKG_DIR" != "." ]]
         then
-            pushd "$GENPKG_DIR" || die "genpkg: $GENPKG_DIR: No such directory"
-            debug "Changing directory to $GENPKG_DIR"
+            # shellcheck disable=2164
+            pushd "$GENPKG_DIR"
         fi
         "${_command}_entrypoint" "$@"
+        ret="$?"
         if [[ "$GENPKG_DIR" != "." ]]
         then
-            popd || die "genpkg: can't go back to $GENPKG_PWD"
-            debug "Changing directory to $GENPKG_DIR"
+            # shellcheck disable=2164
+            popd
         fi
+        return $ret
     fi
 }
 
 main "$@"
+exit "$?"
