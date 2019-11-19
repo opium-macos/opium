@@ -1,0 +1,49 @@
+options=()
+options_description=()
+
+add_option()
+{
+    if [[ "$#" -lt 2 ]]
+    then
+        die "genpkg: add_option: an option need at least a name and a description"
+    fi
+    if [[ "$#" -gt 4 ]]
+    then
+        echo "4"
+        die "genpkg: add_options: too many argument"
+    fi
+    local opt_name="$1"
+    local opt_desc="$2"
+    local opt_deps
+    local opt_build_deps
+    if [[ "$#" -ge 3 ]]
+    then
+        IFS=";" read -r -a opt_deps <<< "$3"
+    fi
+    if [[ "$#" -eq 4 ]]
+    then
+        IFS=";" read -r -a opt_build_deps <<< "$3"
+    fi
+    options+=("$opt_name")
+    options_description+=("$opt_desc")
+    opt_name=${opt_name//-/_}
+    eval "option_${opt_name}_deps=(\${opt_deps[*]})"
+    eval "option_${opt_name}_build_deps=(\${opt_build_deps[*]})"
+}
+
+has_option() {
+    local found=1
+
+    if [[ "$#" -ne 1 ]]
+    then
+        die "genpkg: has_option: not enough argument"
+    fi
+    for option in "${options[@]}"
+    do
+        if [[ "$option" == "$1" ]]
+        then
+           found=0
+        fi
+    done
+    return $found
+}
