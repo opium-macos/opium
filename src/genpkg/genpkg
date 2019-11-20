@@ -2,6 +2,7 @@
 
 LIBEXEC="../libexec"
 
+PKGFILE="Pkgfile"
 GENPKG_VERSION="0.0.1"
 GENPKG_COMMAND_PATH="$LIBEXEC/genpkg/command"
 GENPKG_FUNCTION_PATH="$LIBEXEC/genpkg/function"
