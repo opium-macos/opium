@@ -1,0 +1,3 @@
+Pkgfile linguist-language=Shell
+*.command linguist-language=Shell
+*.fct linguist-language=Shell
