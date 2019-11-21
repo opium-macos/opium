@@ -85,7 +85,7 @@ build_entrypoint() {
     fi
     TEMPDIR=$(mktemp -d -t genpkg)
     push_d "$TEMPDIR"
-    #build_do_the_build
+    build_do_the_build
     pop_d
     rm -rf "$TEMPDIR"
 }
@@ -182,5 +182,76 @@ build_list_deps() {
     then
         echo "Build dependecies of $name ${given_options[*]}"
         echo "  ${build_deps[*]}"
+    fi
+}
+
+# shellcheck disable=2154
+build_do_the_build() {
+    CFLAGS="-I $OPIUM_PREFIX/include"
+    CXXFLAGS="-I $OPIUM_PREFIX/include"
+    LDFLAGS="-L $OPIUM_PREFIX/lib"
+    MAKEFLAGS="-j"
+
+    if declare -p sources > /dev/null 2>&1
+    then
+        mkdir temp
+        for idx in "${!sources[@]}"
+        do
+            local source="${sources[$idx]}"
+            local curl_opt="-O"
+            local filename
+            local uri
+            if [[ "$source" == *::* ]]
+            then
+                filename="${source%%::*}"
+                uri="${source##*::}"
+                curl_opt="-o$filename"
+            else
+                uri="${source}"
+            fi
+            push_d temp
+            case $uri in
+                https://*|http://*|ftp://*)
+                    log "Downloading ${filename:-$uri}"
+                    debug "Running 'curl $curl_opt $uri'"
+                    curl "$curl_opt" "$uri"
+                    ;;
+                git://*)
+                    log "Cloning ${filename:-$uri}"
+                    debug "Running 'git clone $uri $filename'"
+                    git clone "$uri" "$filename"
+                    ;;
+                *)
+                    log "Copy/pasting ${filename:-$uri}"
+                    debug "Running cp '$GENPKG_DIR_REALPATH/$uri" "${filename:-.}'"
+                    cp "$GENPKG_DIR_REALPATH/$uri" "${filename:-.}"
+                    ;;
+            esac
+            filename=${filename:-$(ls)}
+            pop_d
+            mv temp/* .
+            if can_be_extracted
+            then
+                extract "$filename"
+            fi
+            rm -rf "$filename"
+        done
+        rmdir temp
+        mkdir _prefix
+        mkdir _sysroot
+        mkdir _app
+        prefix="$(getpath _prefix)"
+        sysroot="$(getpath _sysroot)"
+        app="$(getpath _app)"
+        declare -i cd_count=0
+        alias cd='((cd_count++)) && push_d'
+        build
+        while [[ "$cd_count" -ne 0 ]]
+        do
+            pop_d
+            ((cd_count--))
+        done
+        ls -la
+        rm -rf _output
     fi
 }

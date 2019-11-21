@@ -1,0 +1,52 @@
+extract () {
+    if [[ -f "$1" ]]
+    then
+        case "$1" in
+            *.tar.bz2)
+                tar xjf "$1"
+                ;;
+            *.tar.gz|*.tar.xz)
+                tar xzf "$1"
+                ;;
+            *.tar)
+                tar xf "$1"
+                ;;
+            *.tbz2)
+                tar xjf "$1"
+                ;;
+            *.tgz)
+                tar xzf "$1"
+                ;;
+            *.zip)
+                unzip "$1"
+                ;;
+            *.bz2)
+                bunzip2 "$1"
+                ;;
+            *.Z)
+                uncompress "$1"
+                ;;
+            *)
+                die "genpkg: build: extract: can't extract $1"
+                ;;
+        esac
+    else
+        die "genpkg: build: extract: $1: no such file"
+    fi
+}
+
+can_be_extracted() {
+    local found=0
+    if declare -p "noextract" > /dev/null 2>&1
+    then
+        # shellcheck disable=2154
+        for info in "${noextract[@]}"
+        do
+            if [[ $info == "$1" ]]
+            then
+                found=1
+            fi
+        done
+    fi
+    return $found
+}
