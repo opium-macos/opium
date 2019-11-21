@@ -1,0 +1,52 @@
+canonicalize_dir_path() {
+    (cd "$1" 2> /dev/null && pwd -P)
+}
+
+canonicalize_file_path() {
+    local dir file
+    dir=$(dirname -- "$1")
+    file=$(basename -- "$1")
+    (cd "$dir" 2> /dev/null && echo "$(pwd -P)/$file")
+}
+
+prepend_path_if_relative() {
+    case "$2" in
+        /*)
+            echo "$2"
+            ;;
+        *)
+            echo "$1/$2"
+            ;;
+    esac
+}
+
+resolve_symlinks() {
+    local dir_context path
+
+    if path=$(readlink -- "$1")
+    then
+        dir_context=$(dirname -- "$1")
+        resolve_symlinks "$(prepend_path_if_relative "$dir_context" "$path")"
+    else
+        echo "$1"
+    fi
+}
+
+getpath() {
+    if [[ "$#" -eq 0 ]]
+    then
+        echo "$0: usage: $(basename "$0") <file>"
+        exit 1
+    fi
+
+    if [[ -d "$1" ]]
+    then
+        canonicalize_dir_path "$(resolve_symlinks "$1")"
+    elif [[ -f "$1" ]]
+    then
+        canonicalize_file_path "$(resolve_symlinks "$1")"
+    else
+        echo "$0: $1: No such file or directory"
+        exit 1
+    fi
+}

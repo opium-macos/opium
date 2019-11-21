@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 
-LIBEXEC="../libexec"
+declare LIBEXEC="../libexec"
 
-PKGFILE="Pkgfile"
-GENPKG_VERSION="0.0.1"
-GENPKG_COMMAND_PATH="$LIBEXEC/genpkg/command"
-GENPKG_FUNCTION_PATH="$LIBEXEC/genpkg/function"
-GENPKG_COMMANDS=()
-GENPKG_DEBUG="false"
-GENPKG_DIR="."
+declare PKGFILE="Pkgfile"
+declare GENPKG_VERSION="0.0.1"
+declare GENPKG_COMMAND_PATH="$LIBEXEC/genpkg/command"
+declare GENPKG_FUNCTION_PATH="$LIBEXEC/genpkg/function"
+declare -a GENPKG_COMMANDS=()
+declare GENPKG_DEBUG="false"
+declare GENPKG_DIR="."
+declare GENPKG_DIR_REALPATH
 
 log() {
     echo "$(tput setaf 2)${2:-->} $(tput sgr0)$1"
@@ -207,6 +208,7 @@ main() {
         local _command="$1"
         declare -i ret
         shift
+        GENPKG_DIR_REALPATH=$(getpath "$GENPKG_DIR")
         if [[ "$GENPKG_DIR" != "." ]]
         then
             push_d "$GENPKG_DIR"
