@@ -34,12 +34,6 @@ lint_entrypoint() {
         fi
     done
     # shellcheck disable=2154
-    if declare -p "nocd" > /dev/null 2>&1 && [[ "$nocd" != "true" && "$nocd" != "false" ]]
-    then
-        ((ret += 1))
-        log "genpkg: lint: nocd can be only either be true or false"
-    fi
-    # shellcheck disable=2154
     if declare -p "sources" > /dev/null 2>&1
     then
         for hash in "sha1" "sha256" "sha512"
