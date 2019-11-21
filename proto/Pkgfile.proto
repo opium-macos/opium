@@ -13,7 +13,6 @@ sha1=()
 sha256=()
 sha512=()
 noextract=()
-nocd="true"
 
 dependencies=()
 build_dependencies=()
