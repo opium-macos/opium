@@ -27,11 +27,11 @@ extract () {
                 uncompress "$1"
                 ;;
             *)
-                die "genpkg: build: extract: can't extract $1"
+                die "genpkg: extract: can't extract $1"
                 ;;
         esac
     else
-        die "genpkg: build: extract: $1: no such file"
+        die "genpkg: extract: $1: no such file"
     fi
 }
 

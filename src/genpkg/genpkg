@@ -29,7 +29,7 @@ debug() {
 push_d() {
     local folder
     folder="$1"
-    pushd "$folder" > /dev/null || die "genpkg: $folder: No such directory"
+    pushd "$folder" > /dev/null 2>&1 || die "genpkg: $folder: No such directory"
     debug "Changing directory to $folder"
 }
 
@@ -38,7 +38,7 @@ pop_d() {
     local size
     size=$(dirs -p | wc -l)
     old_dir=$(dirs -p | tail -n $((size -1)) | head -n 1)
-    popd > /dev/null || die "genpkg: can't go back to $old_dir"
+    popd > /dev/null 2>&1 || die "genpkg: can't go back to $old_dir"
     debug "Changing directory back to $old_dir"
 }
 
@@ -49,7 +49,7 @@ die() {
 
 try_source() {
     # shellcheck source=/dev/null
-    if ! source "$1" 2> /dev/null
+    if ! source > /dev/null 2>&1 "$1"
     then
         die "genpkg: error while sourcing $1"
     fi
