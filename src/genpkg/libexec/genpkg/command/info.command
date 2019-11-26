@@ -1,5 +1,5 @@
 info_entrypoint() {
-    if ! lint_entrypoint > /dev/null
+    if ! lint_entrypoint
     then
         die "genpkg: build: $PKGFILE isn't valid"
     fi
@@ -24,10 +24,7 @@ info_entrypoint() {
                    "sha512" \
                    "noextract" \
                    "dependencies" \
-                   "build_dependencies" \
-                   "options" \
-                   "options_descriptions"
-
+                   "build_dependencies"
     do
         if declare -p "$var_name" > /dev/null 2>&1
         then
@@ -40,6 +37,24 @@ info_entrypoint() {
                 fi
             done
         fi
+    done
+    for ((i = 0; i < option_counter; i += 1))
+    do
+        local nb_deps
+        local nb_build_deps
+
+        echo "option_${i}_name=$(get_option "${i},name")"
+        echo "option_${i}_description=$(get_option "${i},description")"
+        nb_deps=$(get_option "${i},nb_dependencies")
+        for ((j = 0; j < nb_deps; j += 1))
+        do
+            echo "option_${i}_dependencies_${j}=$(get_option "${i},dependencies,${j}")"
+        done
+        nb_build_deps=$(get_option "${i},nb_build_dependencies")
+        for ((j = 0; j < nb_build_deps; j += 1))
+        do
+            echo "option_${i}_build_dependencies_${j}=$(get_option "${i},build_dependencies,${j}")"
+        done
     done
 }
 

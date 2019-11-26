@@ -3,7 +3,6 @@ build_entrypoint() {
     local WANT_LIST_DEPS="false"
     local OUTPUT="default"
     local TEMPDIR
-    given_options=()
 
     if ! lint_entrypoint
     then
@@ -52,31 +51,21 @@ build_entrypoint() {
     fi
     if [[ "$WANT_LIST_OPTIONS" == true ]]
     then
-        build_list_options
+        list_options
         return
     fi
     while [[ "$#" -ne 0 ]]
     do
-        local found=1
-        given_options+=("$1")
-        # shellcheck disable=2154
-        for option in "${options[@]}"
-        do
-            if [[ $option == "$1" ]]
-            then
-                found=0
-            fi
-        done
-        if [[ $found -eq 1 ]]
+        if ! option_exist "$1"
         then
-            # shellcheck disable=2154
             die "genpkg: build: $1: unknown option for $name"
         fi
+        given_options+=("$1")
         shift
     done
     if [[ "$WANT_LIST_DEPS" == true ]]
     then
-        build_list_deps
+        list_deps
         return
     fi
     if [[ "$OUTPUT" != default ]]
@@ -118,60 +107,67 @@ build_help() {
     echo "  List package dependencies then exit"
 }
 
-build_list_options() {
+list_options() {
     # shellcheck disable=2154
     if ! declare -p options > /dev/null 2>&1 || [[ "${#options[@]}" -eq 0 ]]
     then
         echo "$name has no options"
     else
         echo "Options of $name:"
-        for index in "${!options[@]}"
+        for ((i = 0; i < option_counter; i += 1))
         do
-            echo "  ${options[$index]}: ${options_description[$index]}"
+            echo "  $(get_option "${i},name"): $(get_option "${i},description")"
         done
     fi
 }
 
-build_list_deps() {
-    local deps=()
-    local build_deps=()
-    for given_option in "${given_options[@]}"
+
+list_deps_for_opt() {
+    local type=""
+    local deps=""
+    if [[ "$#" -lt 1 || "$#" -gt 2 ]]
+    then
+        die "genpkg: build: internal error: wrong number of argument"
+    fi
+    if [[ "$#" -eq 2 ]]
+    then
+        type="${1}_"
+        shift
+    fi
+    if option_exist "$1"
+    then
+        local nb_deps
+        nb_deps="$(get_option "$1" "nb_${type}dependencies")"
+        for ((i = 0; i < nb_deps; i += 1))
+        do
+            deps+="$(get_option "$1" "${type}dependencies,${i}")"
+            if ((i + 1 != nb_deps))
+            then
+                deps+=" "
+            fi
+        done
+    fi
+    echo "$deps"
+}
+
+list_deps() {
+    local deps=("${dependencies[@]}")
+    local build_deps=("${build_dependencies[@]}")
+    for opt in "${given_options[@]}"
     do
-        given_option=${given_option//-/_}
-        local var_name="option_${given_option}_deps"
-        if declare -p "$var_name" > /dev/null 2>&1
-        then
-            var_name="${var_name}[@]"
-            for dep in "${!var_name}"
-            do
-                deps+=("$dep")
-            done
-        fi
-        var_name="option_${given_option}_build_deps"
-        if declare -p "$var_name" > /dev/null 2>&1
-        then
-            var_name="${var_name}[@]"
-            for build_dep in "${!var_name}"
-            do
-                build_deps+=("$build_dep")
-            done
-        fi
+        local opt_deps
+        local opt_build_deps
+        opt_deps=$(list_deps_for_opt "$opt")
+        opt_build_deps=$(list_deps_for_opt "build" "$opt")
+        deps=("${deps[@]}" "${opt_deps[@]}")
+        build_deps=("${build_deps[@]}" "${opt_build_deps[@]}")
     done
-    # shellcheck disable=2154
-    if declare -p "dependencies" > /dev/null 2>&1 && [[ "${#dependencies[@]}" -ne 0 ]]
-    then
-        deps+=("$dependencies")
-    fi
-    # shellcheck disable=2154
-    if declare -p "build_dependencies" > /dev/null 2>&1 && [[ "${#build_dependencies[@]}" -ne 0 ]]
-    then
-        build_deps+=("$build_dependencies")
-    fi
     IFS=" " read -r -a deps <<< "$(tr ' ' '\n' <<< "${deps[@]}" | sort -u | tr '\n' ' ')"
     IFS=" " read -r -a build_deps <<< "$(tr ' ' '\n' <<< "${build_deps[@]}" | sort -u | tr '\n' ' ')"
     if [[ "${#deps[@]}" -eq 0 && "${#build_deps[@]}" -eq 0 ]]
     then
         echo "No dependencies for $name ${given_options[*]}"
+        return
     fi
     if [[ "${#deps[@]}" -ne 0 ]]
     then
