@@ -35,8 +35,7 @@ resolve_symlinks() {
 getpath() {
     if [[ "$#" -eq 0 ]]
     then
-        echo "$0: usage: $(basename "$0") <file>"
-        exit 1
+        die "$0: usage: $(basename "$0") <file>"
     fi
 
     if [[ -d "$1" ]]
@@ -46,7 +45,6 @@ getpath() {
     then
         canonicalize_file_path "$(resolve_symlinks "$1")"
     else
-        echo "$0: $1: No such file or directory"
-        exit 1
+        die "$0: $1: No such file or directory"
     fi
 }

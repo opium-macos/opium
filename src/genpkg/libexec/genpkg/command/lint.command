@@ -25,7 +25,7 @@ lint_entrypoint() {
             log "genpkg: lint: $var isn't a string"
         fi
     done
-    for var in "provides" "replaces" "conflicts" "sources" "sha1" "sha256" "sha512" "noextract" "dependencies" "build_dependencies" "options"
+    for var in "provides" "replaces" "conflicts" "sources" "sha1" "sha256" "sha512" "noextract" "dependencies" "build_dependencies"
     do
         if declaration=$(declare -p "$var" 2>&1) && ! [[ "$declaration" =~ "declare -a" || "$declaration" =~ "declare -ar" ]]
         then
