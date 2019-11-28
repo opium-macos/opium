@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+declare OPIUM_PREFIX="/opt/pkg"
 declare LIBEXEC="../libexec"
 
 declare PKGFILE="Pkgfile"
@@ -9,7 +10,7 @@ declare GENPKG_FUNCTION_PATH="$LIBEXEC/genpkg/function"
 declare -a GENPKG_COMMANDS=()
 declare GENPKG_DEBUG="false"
 declare GENPKG_DIR="."
-declare GENPKG_DIR_REALPATH
+declare BASE_PWD="."
 
 log() {
     echo "$(tput setaf 2)${2:-->} $(tput sgr0)$1"
@@ -208,14 +209,16 @@ main() {
         local _command="$1"
         declare -i ret
         shift
-        GENPKG_DIR_REALPATH=$(getpath "$GENPKG_DIR")
-        if [[ "$GENPKG_DIR" != "." ]]
+        BASE_PWD=$(getpath "$BASE_PWD")
+        GENPKG_DIR=$(getpath "$GENPKG_DIR")
+        if [[ "$GENPKG_DIR" != "$BASE_PWD" ]]
         then
             push_d "$GENPKG_DIR"
         fi
+
         "${_command}_entrypoint" "$@"
         ret="$?"
-        if [[ "$GENPKG_DIR" != "." ]]
+        if [[ "$GENPKG_DIR" != "$BASE_PWD" ]]
         then
             pop_d
         fi

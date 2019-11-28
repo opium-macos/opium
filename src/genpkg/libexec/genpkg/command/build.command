@@ -74,7 +74,7 @@ build_entrypoint() {
     fi
     TEMPDIR=$(mktemp -d -t genpkg)
     push_d "$TEMPDIR"
-    build_do_the_build
+    do_the_build
     pop_d
     rm -rf "$TEMPDIR"
 }
@@ -182,12 +182,7 @@ list_deps() {
 }
 
 # shellcheck disable=2154
-build_do_the_build() {
-    CFLAGS="-I $OPIUM_PREFIX/include"
-    CXXFLAGS="-I $OPIUM_PREFIX/include"
-    LDFLAGS="-L $OPIUM_PREFIX/lib"
-    MAKEFLAGS="-j"
-
+do_the_build() {
     if declare -p sources > /dev/null 2>&1
     then
         mkdir temp
@@ -215,39 +210,41 @@ build_do_the_build() {
                 git://*)
                     log "Cloning ${filename:-$uri}"
                     debug "Running 'git clone $uri $filename'"
-                    git clone "$uri" "$filename"
+                    git clone "$uri" $filename
                     ;;
                 *)
                     log "Copy/pasting ${filename:-$uri}"
-                    debug "Running cp '$GENPKG_DIR_REALPATH/$uri" "${filename:-.}'"
-                    cp "$GENPKG_DIR_REALPATH/$uri" "${filename:-.}"
+                    debug "Running cp '$GENPKG_DIR/$uri" "${filename:-.}'"
+                    cp "$GENPKG_DIR/$uri" "${filename:-.}"
                     ;;
             esac
             filename=${filename:-$(ls)}
             pop_d
-            mv temp/* .
-            if can_be_extracted
+            mv "temp/${filename}" .
+            if can_be_extracted "$filename"
             then
                 extract "$filename"
+                rm -rf "$filename"
             fi
-            rm -rf "$filename"
         done
         rmdir temp
-        mkdir _prefix
-        mkdir _sysroot
-        mkdir _app
-        prefix="$(getpath _prefix)"
-        sysroot="$(getpath _sysroot)"
-        app="$(getpath _app)"
-        declare -i cd_count=0
-        alias cd='((cd_count++)) && push_d'
-        build
-        while [[ "$cd_count" -ne 0 ]]
-        do
-            pop_d
-            ((cd_count--))
-        done
-        ls -la
-        rm -rf _output
+        log "Building ${name} ${given_options[*]}"
+
+        out_dir=$(mktemp -d ./out.XXXXXXX)
+        #TODO better function overwrite / chroot (cd, push_d, etc...)
+        mkdir "$out_dir/prefix" "$out_dir/sysroot" "$out_dir/app"
+        #TODO
+
+        CFLAGS="-I${OPIUM_PREFIX}/include" \
+              CXXFLAGS="-I${OPIUM_PREFIX}/include" \
+              LDFLAGS="-L${OPIUM_PREFIX}/lib" \
+              MAKEFLAGS="-j" \
+              prefix="$(getpath "$out_dir/prefix")" \
+              app="$(getpath "$out_dir/app")" \
+              sysroot="$(getpath "$out_dir/sysroot")" \
+              build
+        #TODO this is disgusting, pls do better quick
+        cd - > /dev/null
+        tar czf "$BASE_PWD/out.tar.gz" -C "$out_dir" "prefix" "app" "sysroot"
     fi
 }
