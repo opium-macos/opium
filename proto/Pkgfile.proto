@@ -12,10 +12,10 @@ sources=()
 sha1=()
 sha256=()
 sha512=()
-noextract=()
+no_extract=()
 
-dependencies=()
-build_dependencies=()
+dependencies=("base")
+build_dependencies=("build")
 
 add_option "option1" "This is a dummy option"
 add_option "option2" "This is a dummy option with a dependency" "deps"

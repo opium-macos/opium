@@ -22,7 +22,7 @@ info_entrypoint() {
                    "sha1" \
                    "sha256" \
                    "sha512" \
-                   "noextract" \
+                   "no_extract" \
                    "dependencies" \
                    "build_dependencies"
     do
