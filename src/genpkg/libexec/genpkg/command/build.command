@@ -1,7 +1,6 @@
 build_entrypoint() {
     local WANT_LIST_OPTIONS="false"
     local WANT_LIST_DEPS="false"
-    local OUTPUT="default"
     local TEMPDIR
 
     if ! lint_entrypoint
@@ -235,16 +234,44 @@ do_the_build() {
         mkdir "$out_dir/prefix" "$out_dir/sysroot" "$out_dir/app"
         #TODO
 
-        CFLAGS="-I${OPIUM_PREFIX}/include" \
-              CXXFLAGS="-I${OPIUM_PREFIX}/include" \
-              LDFLAGS="-L${OPIUM_PREFIX}/lib" \
-              MAKEFLAGS="-j" \
-              prefix="$(getpath "$out_dir/prefix")" \
-              app="$(getpath "$out_dir/app")" \
-              sysroot="$(getpath "$out_dir/sysroot")" \
-              build
-        #TODO this is disgusting, pls do better quick
-        cd - > /dev/null
-        tar czf "$BASE_PWD/out.tar.gz" -C "$out_dir" "prefix" "app" "sysroot"
+        if ! CFLAGS="-I${OPIUM_PREFIX}/include" \
+                 CXXFLAGS="-I${OPIUM_PREFIX}/include" \
+                 LDFLAGS="-L${OPIUM_PREFIX}/lib" \
+                 MAKEFLAGS="-j" \
+                 prefix="$(getpath "$out_dir/prefix")" \
+                 app="$(getpath "$out_dir/app")" \
+                 sysroot="$(getpath "$out_dir/sysroot")" \
+                 build
+        then
+                rm -rf "$out_dir"
+                rm -rf "$TEMPDIR"
+                die "genpkg: build: error while builing"
+        fi
+        #TODO still digusting, but better
+        cd "$TEMPDIR" ||
+            {
+                rm -rf "$out_dir"
+                rm -rf "$TEMPDIR"
+                die "genpkg: build: error while going back to build directory"
+            }
+        log "Finished build of ${name} ${given_options[*]}"
+        if ! declare -p OUTPUT > /dev/null 2>&1
+        then
+            OUTPUT="$BASE_PWD/${name}${given_options[*]}.pkg.tar.gz"
+        elif [[ "$OUTPUT" == ./* ]]
+        then
+            OUTPUT="${OUTPUT:2}"
+            OUTPUT="$BASE_PWD/$OUTPUT"
+        elif [[ "$OUTPUT" != */* ]]
+        then
+            OUTPUT="$BASE_PWD/$OUTPUT"
+        fi
+        tar czf "$OUTPUT" -C "$out_dir" "prefix" "app" "sysroot" ||
+            {
+                rm -rf "$out_dir"
+                rm -rf "$TEMPDIR"
+                die "genpkg: build: error while creating $OUTPUT"
+            }
+        rm -rf "$out_dir"
     fi
 }
