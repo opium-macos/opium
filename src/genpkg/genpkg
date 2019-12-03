@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-declare OPIUM_PREFIX="/opt/pkg"
+declare OPIUM_PREFIX=${OPIUM_PREFIX:-"/opt/pkg"}
 declare LIBEXEC="../libexec"
 
 declare PKGFILE="Pkgfile"
-declare GENPKG_VERSION="0.0.1"
+declare GENPKG_VERSION="0.5"
 declare GENPKG_COMMAND_PATH="$LIBEXEC/genpkg/command"
 declare GENPKG_FUNCTION_PATH="$LIBEXEC/genpkg/function"
 declare -a GENPKG_COMMANDS=()
@@ -43,13 +43,14 @@ pop_d() {
     debug "Changing directory back to $old_dir"
 }
 
+#TODO trap
+
 die() {
     error "$1"
     exit "${2:-1}"
 }
 
 try_source() {
-    # shellcheck source=/dev/null
     if ! source > /dev/null 2>&1 "$1"
     then
         die "genpkg: error while sourcing $1"
@@ -124,12 +125,12 @@ usage() {
     echo "Options:"
     echo
     echo "-c dir, -cdir, -c=dir, --change-directory=dir, --change-directory dir"
-    echo "  cd to dir before reading Pkgfile"
+    echo "  specify dir containing Pkgfile"
     echo
     echo "-d, --debug"
     echo "  Enable debug output"
     echo
-    echo "-f file, -ffile, -f=file, --file file, --file=file, --pkgfile file, --pkgfile=file"
+    echo "-f file, -ffile, -f=file, --pkgfile file, --pkgfile=file"
     echo "  Use file as a Pkgfile"
     echo
     echo "-h, --help"
@@ -156,7 +157,7 @@ main() {
                 usage
                 return 0
                 ;;
-            -f|--file|--pkgfile)
+            -f|--pkgfile)
                 shift
                 if [[ "$#" -eq 0 ]]
                 then
@@ -164,7 +165,7 @@ main() {
                 fi
                 PKGFILE="$1"
                 ;;
-            -f=*|--file=*|--pkgfile=*)
+            -f=*|--pkgfile=*)
                 PKGFILE=$(echo "$1" | cut -d "=" -f 2)
                 ;;
             -f*)
@@ -211,17 +212,9 @@ main() {
         shift
         BASE_PWD=$(getpath "$BASE_PWD")
         GENPKG_DIR=$(getpath "$GENPKG_DIR")
-        if [[ "$GENPKG_DIR" != "$BASE_PWD" ]]
-        then
-            push_d "$GENPKG_DIR"
-        fi
-
+        PKGFILE=$GENPKG_DIR/$PKGFILE
         "${_command}_entrypoint" "$@"
         ret="$?"
-        if [[ "$GENPKG_DIR" != "$BASE_PWD" ]]
-        then
-            pop_d
-        fi
         return $ret
     fi
 }

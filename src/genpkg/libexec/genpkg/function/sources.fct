@@ -1,0 +1,48 @@
+get_source() {
+    if [[ "$#" -ne 2 ]]
+    then
+        die "genpkg: get_sources: wrong number of argument"
+    fi
+    local source="$1"
+    local download_dir="$2"
+    local curl_opt="-O"
+    local filename
+    local uri
+    if [[ "$source" == *::* ]]
+    then
+        filename="${source%%::*}"
+        uri="${source##*::}"
+        curl_opt="-o$filename"
+    else
+        uri="${source}"
+    fi
+    push_d "$download_dir"
+    case $uri in
+        https://*|http://*|ftp://*)
+            log "Downloading ${filename:-$uri}"
+            debug "Running 'curl -# $curl_opt $uri'"
+            curl -# "$curl_opt" "$uri"
+            ;;
+        git://*)
+            uri=${uri:6}
+            log "Trying to clone ${filename:-$uri} in https"
+            debug "Running 'git clone --depth 1 https://$uri $filename'"
+            if ! git clone --depth 1 "https://$uri" $filename
+            then
+                log "Trying to clone ${filename:-$uri} in http"
+                debug "Running 'git clone --depth 1 http://$uri $filename'"
+                if ! git clone --depth 1 "http://$uri" $filename
+                then
+                    die "genpkg: get_source: can't clone $uri"
+                fi
+            fi
+            ;;
+        *)
+            log "Copy/pasting ${filename:-$uri}"
+            debug "Running cp '$GENPKG_DIR/$uri" "${filename:-.}'"
+            cp "$GENPKG_DIR/$uri" "${filename:-.}"
+            ;;
+    esac
+    filename=${filename:-$(ls)}
+    pop_d
+}

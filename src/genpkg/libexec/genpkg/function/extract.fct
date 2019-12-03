@@ -41,6 +41,10 @@ can_be_extracted() {
     then
         die "genpkg: can_be_extracted: wrong number of argument"
     fi
+    if [[ -d "$1" ]]
+    then
+        return 1
+    fi
     if declare -p "no_extract" > /dev/null 2>&1
     then
         # shellcheck disable=2154

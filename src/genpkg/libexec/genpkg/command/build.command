@@ -67,10 +67,6 @@ build_entrypoint() {
         list_deps
         return
     fi
-    if [[ "$OUTPUT" != default ]]
-    then
-        echo "output = $OUTPUT"
-    fi
     TEMPDIR=$(mktemp -d -t genpkg)
     push_d "$TEMPDIR"
     do_the_build
@@ -107,7 +103,6 @@ build_help() {
 }
 
 list_options() {
-    # shellcheck disable=2154
     if ! declare -p options > /dev/null 2>&1 || [[ "${#options[@]}" -eq 0 ]]
     then
         echo "$name has no options"
@@ -180,53 +175,48 @@ list_deps() {
     fi
 }
 
-# shellcheck disable=2154
 do_the_build() {
     if declare -p sources > /dev/null 2>&1
     then
-        mkdir temp
+        mkdir download
         for idx in "${!sources[@]}"
         do
-            local source="${sources[$idx]}"
-            local curl_opt="-O"
-            local filename
-            local uri
-            if [[ "$source" == *::* ]]
-            then
-                filename="${source%%::*}"
-                uri="${source##*::}"
-                curl_opt="-o$filename"
-            else
-                uri="${source}"
-            fi
-            push_d temp
-            case $uri in
-                https://*|http://*|ftp://*)
-                    log "Downloading ${filename:-$uri}"
-                    debug "Running 'curl $curl_opt $uri'"
-                    curl "$curl_opt" "$uri"
-                    ;;
-                git://*)
-                    log "Cloning ${filename:-$uri}"
-                    debug "Running 'git clone $uri $filename'"
-                    git clone "$uri" $filename
-                    ;;
-                *)
-                    log "Copy/pasting ${filename:-$uri}"
-                    debug "Running cp '$GENPKG_DIR/$uri" "${filename:-.}'"
-                    cp "$GENPKG_DIR/$uri" "${filename:-.}"
-                    ;;
-            esac
-            filename=${filename:-$(ls)}
-            pop_d
-            mv "temp/${filename}" .
+            get_source "${sources[$idx]}" "download"
+            filepath=$(getpath "download/$(ls download)")
+            filename=$(basename "$filepath")
+            for hash_method in "sha1" "sha256" "sha512"
+            do
+                if ! declare -p "$hash_method" > /dev/null 2>&1 || [[ -d "$filepath" ]]
+                then
+                    continue
+                fi
+                local hash="${hash_method}[$idx]"
+                if [[ "${!hash}" == "SKIP" ]]
+                then
+                    #TODO warning instead of log
+                    log "genpkg: build: warning: $filename as no $hash_method defined"
+                    continue
+                fi
+                local check
+                if ! check=$(shasum -a "${hash_method:3}" "$filepath" | cut -d " " -f 1)
+                then
+                    rm -rf "$TEMPDIR"
+                    die "genpkg: build: error while checking $hash_method for $filename"
+                fi
+                if [[ "$check" != "${!hash}" ]]
+                then
+                    rm -rf "$TEMPDIR"
+                    die "genpkg: build: error $hash_method differs for $filename"
+                fi
+            done
+            mv download/* .
             if can_be_extracted "$filename"
             then
                 extract "$filename"
                 rm -rf "$filename"
             fi
         done
-        rmdir temp
+        rmdir download
         log "Building ${name} ${given_options[*]}"
 
         out_dir=$(mktemp -d ./out.XXXXXXX)
@@ -266,7 +256,12 @@ do_the_build() {
         then
             OUTPUT="$BASE_PWD/$OUTPUT"
         fi
-        tar czf "$OUTPUT" -C "$out_dir" "prefix" "app" "sysroot" ||
+        info_entrypoint > Pkginfo
+        for opt in "${given_options[@]}"
+        do
+            echo "given_option=$opt" >> Pkginfo
+        done
+        tar czf "$OUTPUT" "Pkginfo" -C "$out_dir" "prefix" "app" "sysroot" ||
             {
                 rm -rf "$out_dir"
                 rm -rf "$TEMPDIR"
